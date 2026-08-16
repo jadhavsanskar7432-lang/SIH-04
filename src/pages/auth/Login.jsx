@@ -4,9 +4,9 @@ import { useAuth } from '../../context/AuthContext'
 import { ShieldCheck } from 'lucide-react'
 
 const demoAccounts = [
-  { role: 'Admin', username: 'admin', password: 'admin123' },
-  { role: 'Hospital', username: 'hospital', password: 'hospital123' },
-  { role: 'Vendor', username: 'vendor', password: 'vendor123' },
+  { role: 'Admin', email: 'admin@pss04.gov.in', password: 'admin123' },
+  { role: 'Hospital', email: 'hospital1@pss04.gov.in', password: 'hospital123' },
+  { role: 'Vendor', email: 'vendor1@pss04.gov.in', password: 'vendor123' },
 ]
 
 export default function Login() {
@@ -14,7 +14,7 @@ export default function Login() {
   const navigate = useNavigate()
   const location = useLocation()
 
-  const [username, setUsername] = useState('')
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
 
@@ -22,10 +22,10 @@ export default function Login() {
     return <Navigate to="/" replace />
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
-    const result = login(username, password)
+    const result = await login(email, password)
     if (!result.success) {
       setError(result.message)
       return
@@ -35,7 +35,7 @@ export default function Login() {
   }
 
   const fillDemo = (acc) => {
-    setUsername(acc.username)
+    setEmail(acc.email)
     setPassword(acc.password)
   }
 
@@ -54,14 +54,14 @@ export default function Login() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="mb-1.5 block text-sm font-medium text-slate-700">
-                Username
+                Email
               </label>
               <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                placeholder="Enter username"
+                placeholder="Enter email"
                 required
               />
             </div>
@@ -106,7 +106,7 @@ export default function Login() {
                 className="flex w-full items-center justify-between rounded-lg border border-slate-200 px-3 py-2 text-sm hover:bg-slate-50"
               >
                 <span className="font-medium text-slate-700">{acc.role}</span>
-                <span className="text-slate-400">{acc.username}</span>
+                <span className="text-slate-400">{acc.email}</span>
               </button>
             ))}
           </div>
