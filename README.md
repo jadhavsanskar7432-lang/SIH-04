@@ -3,15 +3,15 @@
 Node/Express + MongoDB backend for the SIH internal round (PSS04).
 
 ## Structure
-```
-config/       DB connection
-models/       User, Drug, Batch, Order, Shipment, ConsumptionLog
-controllers/  Route logic (auth done, drugs done as the pattern to copy)
-routes/       Express routers
-middleware/   JWT auth (protect + restrictTo role guard)
-utils/        Token signing, Faker seed script
-server.js     Entry point (Express + Socket.io)
-```
+
+config/ DB connection
+models/ User, Drug, Batch, Order, Shipment, ConsumptionLog
+controllers/ Route logic (auth done, drugs done as the pattern to copy)
+routes/ Express routers
+middleware/ JWT auth (protect + restrictTo role guard)
+utils/ Token signing, Faker seed script
+server.js Entry point (Express + Socket.io)
+
 
 ## Setup (PowerShell)
 
