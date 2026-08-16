@@ -33,6 +33,16 @@ const seed = async () => {
     location: "Central Office",
   });
 
+  // Hardcoded Maharashtra-region coordinates so haversine distances are
+  // realistic and non-zero for the demo. Each vendor is in a different city.
+  const VENDOR_COORDS = [
+    { lat: 19.076, lng: 72.877 }, // Mumbai
+    { lat: 18.520, lng: 73.856 }, // Pune
+    { lat: 21.145, lng: 79.088 }, // Nagpur
+    { lat: 19.997, lng: 73.789 }, // Nashik
+    { lat: 16.700, lng: 74.243 }, // Kolhapur
+  ];
+
   const vendors = [];
   for (let i = 0; i < 5; i++) {
     vendors.push(
@@ -44,9 +54,18 @@ const seed = async () => {
         location: faker.location.city(),
         contact: faker.phone.number(),
         reliabilityScore: faker.number.int({ min: 70, max: 100 }),
+        latitude: VENDOR_COORDS[i].lat,
+        longitude: VENDOR_COORDS[i].lng,
       })
     );
   }
+
+  // Hospitals spread across Maharashtra so distance ranking is meaningful
+  const HOSPITAL_COORDS = [
+    { lat: 19.183, lng: 72.834 }, // Thane (near Mumbai vendor)
+    { lat: 17.688, lng: 75.904 }, // Solapur (between Pune & Nagpur)
+    { lat: 20.746, lng: 77.002 }, // Akola (central Maharashtra)
+  ];
 
   const hospitals = [];
   for (let i = 0; i < 3; i++) {
@@ -58,6 +77,8 @@ const seed = async () => {
         role: "hospital",
         location: faker.location.city(),
         contact: faker.phone.number(),
+        latitude: HOSPITAL_COORDS[i].lat,
+        longitude: HOSPITAL_COORDS[i].lng,
       })
     );
   }
@@ -66,11 +87,25 @@ const seed = async () => {
   const drugs = await Drug.insertMany(DRUGS);
 
   console.log("[Seed] Creating 20 batches...");
+  // Reserved for the deliberate demo shortage batch below — excluded from the
+  // random loop so no random roll can inflate stock for this exact pair and
+  // mask the seeded shortage (this silently happened before: a random batch
+  // landing on ICU Antibiotic Combo + hospitals[0] pushed severity to green).
+  const demoIcuDrugName = "ICU Antibiotic Combo";
+  const demoTargetHospitalIndex = 0;
+
   const batches = [];
   for (let i = 0; i < 20; i++) {
-    const drug = faker.helpers.arrayElement(drugs);
+    let drug, location;
+    do {
+      drug = faker.helpers.arrayElement(drugs);
+      location = faker.helpers.arrayElement([...hospitals, null]); // some in vendor warehouse
+    } while (
+      drug.name === demoIcuDrugName &&
+      location &&
+      location._id.equals(hospitals[demoTargetHospitalIndex]._id)
+    );
     const vendor = faker.helpers.arrayElement(vendors);
-    const location = faker.helpers.arrayElement([...hospitals, null]); // some in vendor warehouse
     const manufactureDate = faker.date.past({ years: 1 });
 
     batches.push(
@@ -87,9 +122,29 @@ const seed = async () => {
     );
   }
 
-  console.log("[Seed] Creating 7 days of consumption logs (ICU antibiotic running low)...");
+  // ── Demo shortage scenario ────────────────────────────────────────────────
+  // Deliberately low stock — demo shortage scenario for ICU Antibiotic Combo
+  // at targetHospital. Quantity = 60 vials; with a burn rate of ~11 units/day
+  // (from the 7-day consumption log below) this gives ~5-6 days of stock left,
+  // placing it firmly in the "red" severity zone (<7 days). This batch is
+  // non-random so re-seeding always reproduces the same demo story.
   const iculAntibiotic = drugs.find((d) => d.name === "ICU Antibiotic Combo");
   const targetHospital = hospitals[0];
+  const demoVendor = vendors[0]; // Mumbai vendor — closest to Thane hospital
+
+  await Batch.create({
+    batchNumber: "BATCH-DEMO-ICU01",
+    drug: iculAntibiotic._id,
+    vendor: demoVendor._id,
+    currentLocation: targetHospital._id,
+    quantity: 60,
+    manufactureDate: new Date("2026-01-01"),
+    expiryDate: new Date("2027-06-30"), // expiry is not the concern here — quantity is
+    status: "in_stock",
+  });
+  // ─────────────────────────────────────────────────────────────────────────
+
+  console.log("[Seed] Creating 7 days of consumption logs (ICU antibiotic running low)...");
 
   for (let day = 6; day >= 0; day--) {
     const date = new Date();
