@@ -161,11 +161,6 @@ const updateShipmentStatus = async (req, res) => {
           shipment.deliveredAt <= shipment.expectedDelivery ? "on_time" : "late";
       }
 
-      // TODO(Dev 2): once services/vendorReliability.js exists, call it here
-      // with { vendorId: shipment.from, deliveryStatus: shipment.deliveryStatus }
-      // so a late delivery reduces reliabilityScore. Not wired yet — the file
-      // doesn't exist on this branch.
-
       // Flip the linked order to delivered
       await Order.findByIdAndUpdate(shipment.order, { status: "delivered" });
 
@@ -181,14 +176,15 @@ const updateShipmentStatus = async (req, res) => {
     }
 
     await shipment.save();
-    if (status === "delivered" || status === "delayed" || status === "failed") {
+
+    // Adjust vendor reliability based on shipment outcome. Wrapped so a
+    // reliability-update failure never blocks the shipment status response
+    // (per BACKEND_TASKS.md Lane B requirements).
+    if (["delivered", "delayed", "failed"].includes(status)) {
       try {
         await adjustReliability(shipment.from, status);
       } catch (reliabilityErr) {
-        console.error(
-          `Failed to update vendor reliability for shipment ${shipment._id}:`,
-          reliabilityErr.message
-        );
+        console.error("[shipmentController] reliability update failed:", reliabilityErr.message);
       }
     }
 
