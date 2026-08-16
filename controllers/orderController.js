@@ -16,7 +16,7 @@ const emitOrderUpdate = (io, order) => {
 // POST /api/orders — hospital creates a request
 const createOrder = async (req, res) => {
   try {
-    const { items, priority, notes } = req.body;
+    const { items, priority, urgency, notes } = req.body;
 
     if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ message: "items array is required and must not be empty" });
@@ -26,6 +26,7 @@ const createOrder = async (req, res) => {
       hospital: req.user._id,
       items,
       priority,
+      urgency,
       notes,
       status: "requested",
     });

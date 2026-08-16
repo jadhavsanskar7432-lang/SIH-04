@@ -31,6 +31,9 @@ const OrderSchema = new mongoose.Schema(
     },
 
     priority: { type: String, enum: ["low", "medium", "high", "critical"], default: "medium" },
+    // urgency drives vendor-matching logic: "urgent" → nearest vendor, "normal" → best-score vendor.
+    // Intentionally separate from priority, which is the clinical triage level.
+    urgency: { type: String, enum: ["urgent", "normal"], required: true, default: "normal" },
     notes: { type: String },
   },
   { timestamps: true }

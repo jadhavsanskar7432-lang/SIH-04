@@ -152,6 +152,19 @@ const updateShipmentStatus = async (req, res) => {
     if (status === "delivered") {
       shipment.deliveredAt = new Date();
 
+      // On-time vs late: compare deliveredAt against expectedDelivery.
+      // If expectedDelivery wasn't set on this shipment, leave deliveryStatus
+      // null rather than guessing — nothing to compare against.
+      if (shipment.expectedDelivery) {
+        shipment.deliveryStatus =
+          shipment.deliveredAt <= shipment.expectedDelivery ? "on_time" : "late";
+      }
+
+      // TODO(Dev 2): once services/vendorReliability.js exists, call it here
+      // with { vendorId: shipment.from, deliveryStatus: shipment.deliveryStatus }
+      // so a late delivery reduces reliabilityScore. Not wired yet — the file
+      // doesn't exist on this branch.
+
       // Flip the linked order to delivered
       await Order.findByIdAndUpdate(shipment.order, { status: "delivered" });
 

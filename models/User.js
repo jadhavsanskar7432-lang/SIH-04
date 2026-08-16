@@ -22,6 +22,11 @@ const UserSchema = new mongoose.Schema(
       max: 100,
     },
 
+    // Geographic coordinates — optional; used by vendor-matching distance calc.
+    // Null-safe: haversine helper returns null if either coord is missing.
+    latitude: { type: Number },
+    longitude: { type: Number },
+
     isActive: { type: Boolean, default: true },
   },
   { timestamps: true }
