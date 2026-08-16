@@ -1,9 +1,14 @@
-export default function PageHeader({ title, description }) {
+export default function PageHeader({ eyebrow, title, description }) {
   return (
     <div className="mb-6">
-      <h1 className="text-2xl font-semibold text-slate-900">{title}</h1>
+      {eyebrow && (
+        <p className="mb-1 text-xs font-medium uppercase tracking-wide text-ink-faint">
+          {eyebrow}
+        </p>
+      )}
+      <h1 className="text-2xl font-semibold text-ink">{title}</h1>
       {description && (
-        <p className="mt-1 text-sm text-slate-500">{description}</p>
+        <p className="mt-1 text-sm text-ink-soft">{description}</p>
       )}
     </div>
   )

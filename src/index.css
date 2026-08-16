@@ -3,5 +3,11 @@
 @tailwind utilities;
 
 body {
-  @apply bg-slate-50 text-slate-900;
+  @apply bg-paper text-ink;
+}
+
+:focus-visible {
+  outline: 2px solid #CFEE5D;
+  outline-offset: 2px;
+  border-radius: 2px;
 }
