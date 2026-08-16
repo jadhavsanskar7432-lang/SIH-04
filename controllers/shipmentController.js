@@ -1,6 +1,7 @@
 const Shipment = require("../models/Shipment");
 const Order = require("../models/Order");
 const Batch = require("../models/Batch");
+const { adjustReliability } = require("../services/vendorReliability");
 
 // Valid status transitions for a shipment
 const VALID_TRANSITIONS = {
@@ -180,6 +181,16 @@ const updateShipmentStatus = async (req, res) => {
     }
 
     await shipment.save();
+    if (status === "delivered" || status === "delayed" || status === "failed") {
+      try {
+        await adjustReliability(shipment.from, status);
+      } catch (reliabilityErr) {
+        console.error(
+          `Failed to update vendor reliability for shipment ${shipment._id}:`,
+          reliabilityErr.message
+        );
+      }
+    }
 
     emitShipmentUpdate(req.app.get("io"), shipment);
 
