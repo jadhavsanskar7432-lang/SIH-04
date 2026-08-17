@@ -57,6 +57,11 @@ const PORT = process.env.PORT || 5000;
 
 const start = async () => {
   await connectDB();
+
+  // Start the auto-refill cron job (Task D) — must run after DB is connected
+  const { startAutoRefillJob } = require("./jobs/autoRefill");
+  startAutoRefillJob();
+
   server.listen(PORT, () => {
     console.log(`[Server] PSS04 backend running on port ${PORT}`);
   });

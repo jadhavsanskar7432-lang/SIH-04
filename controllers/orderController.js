@@ -13,28 +13,54 @@ const emitOrderUpdate = (io, order) => {
   }
 };
 
+// ─── Reusable order-creation logic ──────────────────────────────────────────
+// Extracted so the auto-refill cron job can call the same validation + create
+// path without duplicating business rules or depending on req/res.
+//
+// @param {Object} data — { hospital, items, priority, urgency, notes, vendor?, origin? }
+// @returns {Promise<Order>}
+// @throws {Error} with a descriptive message on validation failure
+const buildOrder = async (data) => {
+  const { hospital, items, priority, urgency, notes, vendor, origin } = data;
+
+  if (!items || !Array.isArray(items) || items.length === 0) {
+    throw new Error("items array is required and must not be empty");
+  }
+
+  const order = await Order.create({
+    hospital,
+    items,
+    priority,
+    urgency,
+    notes,
+    vendor: vendor || null,
+    origin: origin || "manual",
+    status: "requested",
+  });
+
+  return order;
+};
+
 // POST /api/orders — hospital creates a request
 const createOrder = async (req, res) => {
   try {
     const { items, priority, urgency, notes } = req.body;
 
-    if (!items || !Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ message: "items array is required and must not be empty" });
-    }
-
-    const order = await Order.create({
+    const order = await buildOrder({
       hospital: req.user._id,
       items,
       priority,
       urgency,
       notes,
-      status: "requested",
     });
 
     emitOrderUpdate(req.app.get("io"), order);
 
     res.status(201).json(order);
   } catch (err) {
+    if (err.message === "items array is required and must not be empty") {
+      return res.status(400).json({ message: err.message });
+    }
     res.status(500).json({ message: "Could not create order", error: err.message });
   }
 };
@@ -193,6 +219,7 @@ const cancelOrder = async (req, res) => {
 };
 
 module.exports = {
+  buildOrder,
   createOrder,
   getOrders,
   getOrderById,
