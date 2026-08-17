@@ -58,7 +58,7 @@ export default function HospitalConsumption() {
       // Only send date if user filled it in (otherwise backend defaults to today)
       if (date) body.date = date
 
-      const newLog = await apiFetch('/consumption', {
+      await apiFetch('/consumption', {
         method: 'POST',
         body: JSON.stringify(body),
       })
