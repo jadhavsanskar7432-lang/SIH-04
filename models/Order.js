@@ -31,7 +31,15 @@ const OrderSchema = new mongoose.Schema(
     },
 
     priority: { type: String, enum: ["low", "medium", "high", "critical"], default: "medium" },
+    // urgency drives vendor-matching logic: "urgent" → nearest vendor, "normal" → best-score vendor.
+    // Intentionally separate from priority, which is the clinical triage level.
+    urgency: { type: String, enum: ["urgent", "normal"], required: true, default: "normal" },
     notes: { type: String },
+
+    // "manual" = hospital/admin created, "auto" = auto-refill job created.
+    // Minimum needed to: (1) enforce 24h cooldown on auto-orders per hospital+drug,
+    // (2) distinguish system-generated orders in dashboards/reports.
+    origin: { type: String, enum: ["manual", "auto"], default: "manual" },
   },
   { timestamps: true }
 );

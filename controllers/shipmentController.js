@@ -1,6 +1,7 @@
 const Shipment = require("../models/Shipment");
 const Order = require("../models/Order");
 const Batch = require("../models/Batch");
+const { adjustReliability } = require("../services/vendorReliability");
 
 // Valid status transitions for a shipment
 const VALID_TRANSITIONS = {
@@ -152,6 +153,14 @@ const updateShipmentStatus = async (req, res) => {
     if (status === "delivered") {
       shipment.deliveredAt = new Date();
 
+      // On-time vs late: compare deliveredAt against expectedDelivery.
+      // If expectedDelivery wasn't set on this shipment, leave deliveryStatus
+      // null rather than guessing — nothing to compare against.
+      if (shipment.expectedDelivery) {
+        shipment.deliveryStatus =
+          shipment.deliveredAt <= shipment.expectedDelivery ? "on_time" : "late";
+      }
+
       // Flip the linked order to delivered
       await Order.findByIdAndUpdate(shipment.order, { status: "delivered" });
 
@@ -167,6 +176,17 @@ const updateShipmentStatus = async (req, res) => {
     }
 
     await shipment.save();
+
+    // Adjust vendor reliability based on shipment outcome. Wrapped so a
+    // reliability-update failure never blocks the shipment status response
+    // (per BACKEND_TASKS.md Lane B requirements).
+    if (["delivered", "delayed", "failed"].includes(status)) {
+      try {
+        await adjustReliability(shipment.from, status);
+      } catch (reliabilityErr) {
+        console.error("[shipmentController] reliability update failed:", reliabilityErr.message);
+      }
+    }
 
     emitShipmentUpdate(req.app.get("io"), shipment);
 

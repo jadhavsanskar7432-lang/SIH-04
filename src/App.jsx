@@ -18,9 +18,11 @@ import AdminInventory from './pages/admin/Inventory'
 import AdminHospitals from './pages/admin/Hospitals'
 import AdminVendors from './pages/admin/Vendors'
 import AdminOrders from './pages/admin/Orders'
+import AdminProcurement from './pages/admin/Procurement'
 import AdminShipments from './pages/admin/Shipments'
 import AdminAnalytics from './pages/admin/Analytics'
 import AdminAlerts from './pages/admin/Alerts'
+import AdminRedistribution from './pages/admin/Redistribution'
 
 // Hospital pages
 import HospitalDashboard from './pages/hospital/Dashboard'
@@ -53,9 +55,11 @@ export default function App() {
             <Route path="hospitals" element={<AdminHospitals />} />
             <Route path="vendors" element={<AdminVendors />} />
             <Route path="orders" element={<AdminOrders />} />
+            <Route path="procurement" element={<AdminProcurement />} />
             <Route path="shipments" element={<AdminShipments />} />
             <Route path="analytics" element={<AdminAnalytics />} />
             <Route path="alerts" element={<AdminAlerts />} />
+            <Route path="redistribution" element={<AdminRedistribution />} />
           </Route>
         </Route>
 

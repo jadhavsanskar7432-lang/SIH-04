@@ -12,6 +12,17 @@ const ShipmentSchema = new mongoose.Schema(
     expectedDelivery: { type: Date },
     deliveredAt: { type: Date },
 
+    // Computed once deliveredAt is set: "on_time" | "late". Null until delivered.
+    // Compares deliveredAt against expectedDelivery — see updateShipmentStatus
+    // in shipmentController.js. Dev 2's vendorReliability service should read
+    // this field to adjust reliabilityScore on delivery (not yet wired here —
+    // that file doesn't exist on this branch yet).
+    deliveryStatus: {
+      type: String,
+      enum: ["on_time", "late", null],
+      default: null,
+    },
+
     status: {
       type: String,
       enum: ["pending", "in_transit", "delayed", "delivered", "failed"],

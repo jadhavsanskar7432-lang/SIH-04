@@ -10,6 +10,8 @@ import {
   ClipboardList,
   CalendarClock,
   TrendingUp,
+  Sparkles,
+  ArrowLeftRight,
 } from 'lucide-react'
 
 export const adminNavItems = [
@@ -18,9 +20,11 @@ export const adminNavItems = [
   { label: 'Hospitals', path: 'hospitals', icon: Building2 },
   { label: 'Vendors', path: 'vendors', icon: Users },
   { label: 'Orders', path: 'orders', icon: ShoppingCart },
+  { label: 'Procurement', path: 'procurement', icon: Sparkles },
   { label: 'Shipments', path: 'shipments', icon: Truck },
   { label: 'Analytics', path: 'analytics', icon: BarChart3 },
   { label: 'Alerts', path: 'alerts', icon: Bell },
+  { label: 'Redistribution', path: 'redistribution', icon: ArrowLeftRight },
 ]
 
 export const hospitalNavItems = [

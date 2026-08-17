@@ -1,8 +1,9 @@
 import { createContext, useContext, useEffect, useState } from 'react'
-import { mockUsers } from '../data/mockUsers'
+import { apiFetch } from '../api'
 
 const AuthContext = createContext(null)
 const STORAGE_KEY = 'sih_auth_user'
+const TOKEN_KEY = 'sih_auth_user_token'
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
@@ -20,22 +21,25 @@ export function AuthProvider({ children }) {
     setLoading(false)
   }, [])
 
-  const login = (username, password) => {
-    const match = mockUsers.find(
-      (u) => u.username === username && u.password === password
-    )
-    if (!match) {
-      return { success: false, message: 'Invalid username or password' }
+  const login = async (email, password) => {
+    try {
+      const data = await apiFetch('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password }),
+      })
+      setUser(data.user)
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data.user))
+      localStorage.setItem(TOKEN_KEY, data.token)
+      return { success: true, user: data.user }
+    } catch (error) {
+      return { success: false, message: error.message || 'Login failed' }
     }
-    const { password: _pw, ...safeUser } = match
-    setUser(safeUser)
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(safeUser))
-    return { success: true, user: safeUser }
   }
 
   const logout = () => {
     setUser(null)
     localStorage.removeItem(STORAGE_KEY)
+    localStorage.removeItem(TOKEN_KEY)
   }
 
   return (

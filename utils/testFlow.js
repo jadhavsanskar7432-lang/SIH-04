@@ -1,4 +1,3 @@
-
 const BASE_URL = process.env.TEST_BASE_URL || "http://localhost:5000/api";
 
 const accounts = {
@@ -76,6 +75,20 @@ async function run() {
   const icuDrug = drugsRes.data?.find((d) => d.name === "ICU Antibiotic Combo");
   record("Fetch drug catalog", drugsRes.ok && !!icuDrug, icuDrug ? `found "${icuDrug.name}"` : "ICU Antibiotic Combo not found — check seed data");
   if (!icuDrug) return summarize();
+
+  // 2b. Check insights/alerts picks up the seeded shortage BEFORE the order/shipment
+  // cycle below delivers a batch to the same hospital+drug — a delivered shipment
+  // adds stock, which would push severity back to green and mask the seeded scenario.
+  const alerts = await request("GET", "/insights/alerts", { token: hospital.token });
+  const icuAlert = alerts.data?.find?.(
+    (a) => a.drug?._id === icuDrug._id || a.drug?.name === icuDrug.name
+  );
+  const severityOk = icuAlert && ["red", "yellow"].includes(icuAlert.severity);
+  record(
+    "Insights: ICU shortage flagged red/yellow",
+    !!severityOk,
+    icuAlert ? `severity: ${icuAlert.severity}` : "no alert returned for ICU Antibiotic Combo — check seed batch quantity / burn rate"
+  );
 
   // 3. Hospital creates an order
   const createOrder = await request("POST", "/orders", {

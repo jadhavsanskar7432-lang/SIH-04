@@ -11,6 +11,10 @@ const orderRoutes = require("./routes/orderRoutes");
 const shipmentRoutes = require("./routes/shipmentRoutes");
 const consumptionRoutes = require("./routes/consumptionRoutes");
 const batchRoutes = require("./routes/batchRoutes");
+const insightsRoutes = require("./routes/insightsRoutes");
+const vendorRoutes = require("./routes/vendorRoutes");
+const procurementRoutes = require("./routes/procurementRoutes");
+const hospitalRoutes = require("./routes/hospitalRoutes");
 
 const app = express();
 const server = http.createServer(app);
@@ -35,6 +39,10 @@ app.use("/api/orders", orderRoutes);
 app.use("/api/shipments", shipmentRoutes);
 app.use("/api/consumption", consumptionRoutes);
 app.use("/api/batches", batchRoutes);
+app.use("/api/insights", insightsRoutes);
+app.use("/api/vendors", vendorRoutes);
+app.use("/api/procurement", procurementRoutes);
+app.use("/api/hospitals", hospitalRoutes);
 
 // Socket.io: role-based rooms so alerts fan out only to the right dashboard
 // (mirrors the "Alert & notification" node in the circuit map).
@@ -44,13 +52,18 @@ io.on("connection", (socket) => {
     if (userId) socket.join(`user:${userId}`);
   });
 
-  socket.on("disconnect", () => {});
+  socket.on("disconnect", () => { });
 });
 
 const PORT = process.env.PORT || 5000;
 
 const start = async () => {
   await connectDB();
+
+  // Start the auto-refill cron job (Task D) — must run after DB is connected
+  const { startAutoRefillJob } = require("./jobs/autoRefill");
+  startAutoRefillJob();
+
   server.listen(PORT, () => {
     console.log(`[Server] PSS04 backend running on port ${PORT}`);
   });
