@@ -1,13 +1,12 @@
 import { ArrowRight } from 'lucide-react'
 
-export default function TransferSuggestionCard({ drug, qty, from, to, batch, reason, onApprove }) {
+export default function TransferSuggestionCard({ drug, qty, from, to, reason, onApprove }) {
   return (
     <div className="w-full max-w-sm rounded-md border border-line bg-white/70 p-4 shadow-card">
-      <div className="flex items-center justify-between">
+      <div>
         <span className="font-mono text-[10px] uppercase tracking-widest2 text-amber">
-          Suggested transfer
+          Redistribution recommendation
         </span>
-        <span className="font-mono text-[10px] text-ink-faint">batch {batch}</span>
       </div>
 
       <p className="mt-2.5 font-display text-[17px] font-medium text-ink">{drug}</p>

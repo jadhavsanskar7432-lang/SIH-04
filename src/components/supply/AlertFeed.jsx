@@ -7,11 +7,10 @@ const dot = {
 export default function AlertFeed({ items = [], action }) {
   return (
     <div className="w-full max-w-sm rounded-md border border-line bg-white/70 shadow-card">
-      <div className="flex items-center justify-between border-b border-line px-4 py-2.5">
+      <div className="border-b border-line px-4 py-2.5">
         <span className="font-mono text-[10px] uppercase tracking-widest2 text-ink-faint">
           Alert feed
         </span>
-        <span className="font-mono text-[10px] text-ink-faint">role:admin</span>
       </div>
       <ul className="divide-y divide-line">
         {items.map((item, i) => (
