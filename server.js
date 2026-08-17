@@ -13,6 +13,7 @@ const consumptionRoutes = require("./routes/consumptionRoutes");
 const batchRoutes = require("./routes/batchRoutes");
 const insightsRoutes = require("./routes/insightsRoutes");
 const vendorRoutes = require("./routes/vendorRoutes");
+const procurementRoutes = require("./routes/procurementRoutes");
 
 const app = express();
 const server = http.createServer(app);
@@ -39,6 +40,7 @@ app.use("/api/consumption", consumptionRoutes);
 app.use("/api/batches", batchRoutes);
 app.use("/api/insights", insightsRoutes);
 app.use("/api/vendors", vendorRoutes);
+app.use("/api/procurement", procurementRoutes);
 
 // Socket.io: role-based rooms so alerts fan out only to the right dashboard
 // (mirrors the "Alert & notification" node in the circuit map).
