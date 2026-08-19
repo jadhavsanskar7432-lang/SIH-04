@@ -56,4 +56,51 @@ const getMe = async (req, res) => {
   res.json({ user: req.user });
 };
 
-module.exports = { register, login, getMe };
+// GET /api/auth/demo-accounts
+//
+// Public, read-only endpoint used ONLY by the dev QuickSwitch component.
+// The fixed demo emails (admin@pss04.gov.in, hospital1-3@pss04.gov.in,
+// vendor1-5@pss04.gov.in) and their passwords never change across reseeds —
+// but the `name` faker generates for each vendor/hospital DOES change every
+// time `npm run seed` runs. Hardcoding names in the frontend goes stale the
+// moment someone reseeds. This endpoint returns the CURRENT real names so
+// QuickSwitch always matches what's actually in the database.
+//
+// Only returns name/email/role — never passwords or ids. Safe to leave
+// public since it's demo/dev convenience data, not sensitive info.
+const DEMO_EMAILS = [
+  "admin@pss04.gov.in",
+  "hospital1@pss04.gov.in",
+  "hospital2@pss04.gov.in",
+  "hospital3@pss04.gov.in",
+  "vendor1@pss04.gov.in",
+  "vendor2@pss04.gov.in",
+  "vendor3@pss04.gov.in",
+  "vendor4@pss04.gov.in",
+  "vendor5@pss04.gov.in",
+];
+
+const getDemoAccounts = async (req, res) => {
+  try {
+    const users = await User.find({ email: { $in: DEMO_EMAILS } }).select("name email role");
+
+    // Preserve DEMO_EMAILS order (admin, hospitals, vendors) and skip any
+    // that don't exist yet (e.g. before first seed).
+    const byEmail = {};
+    for (const u of users) byEmail[u.email] = u;
+
+    const accounts = DEMO_EMAILS
+      .filter((email) => byEmail[email])
+      .map((email) => ({
+        label: byEmail[email].name,
+        email: byEmail[email].email,
+        role: byEmail[email].role,
+      }));
+
+    res.json(accounts);
+  } catch (err) {
+    res.status(500).json({ message: "Could not load demo accounts", error: err.message });
+  }
+};
+
+module.exports = { register, login, getMe, getDemoAccounts };
