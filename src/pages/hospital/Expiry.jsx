@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { CalendarClock, AlertTriangle, ShieldCheck } from 'lucide-react'
 import { apiFetch } from '../../api'
-import { DARK } from '../../theme/adminColors'
 
 const EXPIRY_WARNING_DAYS = 30
 
@@ -9,6 +8,12 @@ function daysUntilExpiry(expiryDate) {
   const now = new Date()
   const exp = new Date(expiryDate)
   return Math.ceil((exp - now) / (1000 * 60 * 60 * 24))
+}
+
+function urgencyAccent(daysLeft) {
+  if (daysLeft <= 0) return '#F43F5E'
+  if (daysLeft <= EXPIRY_WARNING_DAYS) return '#F59E0B'
+  return '#D7FF5F'
 }
 
 function getExpiryBadge(daysLeft) {
@@ -99,13 +104,12 @@ export default function HospitalExpiry() {
       )}
 
       {loading && (
-        <div className="flex min-h-[240px] items-center justify-center rounded-2xl border border-slate-200 bg-white">
-          <div className="text-center">
-            <div
-              className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-slate-200"
-              style={{ borderTopColor: DARK }}
-            />
-            <p className="mt-3 text-sm text-slate-500">Loading expiry data...</p>
+        <div className="space-y-3">
+          <div className="skeleton h-24 rounded-2xl" />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="skeleton h-32 rounded-2xl" />
+            ))}
           </div>
         </div>
       )}
@@ -125,46 +129,41 @@ export default function HospitalExpiry() {
       )}
 
       {!loading && !error && batches.length > 0 && (
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50">
-                <tr>
-                  <th className="px-6 py-3 font-medium text-slate-500">Drug</th>
-                  <th className="px-4 py-3 font-medium text-slate-500">Batch</th>
-                  <th className="px-4 py-3 font-medium text-slate-500">Expiry Date</th>
-                  <th className="px-4 py-3 font-medium text-slate-500">Status</th>
-                  <th className="px-4 py-3 text-right font-medium text-slate-500">Qty</th>
-                </tr>
-              </thead>
-              <tbody>
-                {batches.map((b) => {
-                  const daysLeft = daysUntilExpiry(b.expiryDate)
-                  const isUrgent = daysLeft <= EXPIRY_WARNING_DAYS
-                  return (
-                    <tr
-                      key={b._id}
-                      className={`border-b border-slate-100 transition-colors last:border-0 hover:bg-slate-50 ${
-                        isUrgent ? (daysLeft <= 0 ? 'bg-rose-50/40' : 'bg-amber-50/40') : ''
-                      }`}
-                    >
-                      <td className="px-6 py-3 text-slate-700">{b.drug?.name || '—'}</td>
-                      <td className="px-4 py-3 font-mono text-xs text-slate-500">
-                        {b.batchNumber}
-                      </td>
-                      <td className="px-4 py-3 text-slate-600">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {batches.map((b) => {
+            const daysLeft = daysUntilExpiry(b.expiryDate)
+            return (
+              <div
+                key={b._id}
+                className="flex overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-popover"
+              >
+                <div className="w-1.5 shrink-0" style={{ backgroundColor: urgencyAccent(daysLeft) }} />
+
+                <div className="flex-1 p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold text-slate-900">{b.drug?.name || '—'}</p>
+                      <p className="font-mono text-[11px] text-slate-400">{b.batchNumber}</p>
+                    </div>
+                    {getExpiryBadge(daysLeft)}
+                  </div>
+
+                  <div className="mt-3 flex items-end justify-between border-t border-slate-100 pt-3">
+                    <div>
+                      <p className="text-[11px] text-slate-400">Expiry Date</p>
+                      <p className="text-xs font-medium text-slate-600">
                         {b.expiryDate ? new Date(b.expiryDate).toLocaleDateString() : '—'}
-                      </td>
-                      <td className="px-4 py-3">{getExpiryBadge(daysLeft)}</td>
-                      <td className="px-4 py-3 text-right font-semibold text-slate-800">
-                        {b.quantity}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[11px] text-slate-400">Quantity</p>
+                      <p className="text-lg font-bold text-slate-900">{b.quantity}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
         </div>
       )}
     </div>

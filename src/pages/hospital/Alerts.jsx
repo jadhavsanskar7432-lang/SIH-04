@@ -12,6 +12,28 @@ const SEVERITY_ORDER = { red: 0, yellow: 1, green: 2 }
 
 function RedistributionCard({ item }) {
   const [reminded, setReminded] = useState(false)
+  const [sending, setSending] = useState(false)
+  const [sendError, setSendError] = useState(null)
+
+  async function handleRemind() {
+    setSending(true)
+    setSendError(null)
+    try {
+      await apiFetch('/insights/redistribution/remind', {
+        method: 'POST',
+        body: JSON.stringify({
+          fromHospital: item.fromHospital?._id,
+          drug: item.drug?._id,
+          suggestedQuantity: item.suggestedQuantity,
+        }),
+      })
+      setReminded(true)
+    } catch (err) {
+      setSendError(err.message)
+    } finally {
+      setSending(false)
+    }
+  }
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
@@ -59,18 +81,24 @@ function RedistributionCard({ item }) {
         {reminded ? (
           <div className="flex items-center gap-2 text-xs font-medium text-emerald-600">
             <CheckCircle2 size={14} />
-            Reminder request recorded
+            Admin has been notified
           </div>
         ) : (
-          <button
-            type="button"
-            onClick={() => setReminded(true)}
-            className="flex w-full items-center justify-center gap-2 rounded-lg py-2 text-xs font-semibold transition-opacity hover:opacity-90"
-            style={{ backgroundColor: LIME, color: LIME_TEXT }}
-          >
-            <Mail size={13} />
-            Remind Admin
-          </button>
+          <>
+            <button
+              type="button"
+              onClick={handleRemind}
+              disabled={sending}
+              className="flex w-full items-center justify-center gap-2 rounded-lg py-2 text-xs font-semibold transition-opacity hover:opacity-90 disabled:opacity-50"
+              style={{ backgroundColor: LIME, color: LIME_TEXT }}
+            >
+              <Mail size={13} />
+              {sending ? 'Sending…' : 'Remind Admin'}
+            </button>
+            {sendError && (
+              <p className="mt-1.5 text-[11px] text-rose-600">{sendError}</p>
+            )}
+          </>
         )}
       </div>
     </div>

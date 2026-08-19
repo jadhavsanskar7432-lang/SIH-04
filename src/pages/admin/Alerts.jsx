@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { AlertTriangle, Bell, ShieldCheck } from 'lucide-react'
+import { AlertTriangle, Bell, ShieldCheck, Mail, ArrowRight } from 'lucide-react'
 import { apiFetch } from '../../api'
+import { getSocket } from '../../socket'
 import { DARK } from '../../theme/adminColors'
 
 const SEVERITY_STYLES = {
@@ -31,8 +32,23 @@ export default function AdminAlerts() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
+  const [reminders, setReminders] = useState([])
+  const [remindersLoading, setRemindersLoading] = useState(true)
+
   useEffect(() => {
     fetchAlerts()
+    fetchReminders()
+  }, [])
+
+  // Live updates: backend emits "reminder:new" to the admin room the moment
+  // a hospital sends one, so it shows up without needing a manual refresh.
+  useEffect(() => {
+    const socket = getSocket()
+    const onNewReminder = (reminder) => {
+      setReminders((prev) => [reminder, ...prev])
+    }
+    socket.on('reminder:new', onNewReminder)
+    return () => socket.off('reminder:new', onNewReminder)
   }, [])
 
   async function fetchAlerts() {
@@ -46,6 +62,28 @@ export default function AdminAlerts() {
     } finally {
       setLoading(false)
     }
+  }
+
+  async function fetchReminders() {
+    try {
+      setRemindersLoading(true)
+      const data = await apiFetch('/insights/reminders')
+      setReminders(Array.isArray(data) ? data : [])
+    } catch (err) {
+      console.error('Failed to load reminders:', err)
+    } finally {
+      setRemindersLoading(false)
+    }
+  }
+
+  function timeAgo(dateStr) {
+    const diffMs = Date.now() - new Date(dateStr).getTime()
+    const mins = Math.floor(diffMs / 60000)
+    if (mins < 1) return 'just now'
+    if (mins < 60) return `${mins}m ago`
+    const hours = Math.floor(mins / 60)
+    if (hours < 24) return `${hours}h ago`
+    return `${Math.floor(hours / 24)}d ago`
   }
 
   const critical = alerts.filter((a) => a.severity === 'red').length
@@ -77,6 +115,38 @@ export default function AdminAlerts() {
           </div>
         )}
       </div>
+
+      {/* REMINDERS FROM HOSPITALS */}
+      {!remindersLoading && reminders.length > 0 && (
+        <div className="mb-6 space-y-3">
+          <h2 className="flex items-center gap-1.5 text-sm font-semibold text-slate-700">
+            <Mail size={14} />
+            Reminders from hospitals ({reminders.length})
+          </h2>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+            {reminders.map((r) => (
+              <div
+                key={r._id}
+                className="rounded-2xl border p-4"
+                style={{ borderColor: '#E8ECD4', backgroundColor: '#F5F7ED' }}
+              >
+                <p className="text-sm font-semibold text-slate-900">
+                  {r.drug?.name || 'Unknown drug'}
+                </p>
+                <div className="mt-1.5 flex items-center gap-1.5 text-xs text-slate-600">
+                  <span className="truncate">{r.fromHospital?.name || 'Unknown'}</span>
+                  <ArrowRight size={11} className="shrink-0 text-slate-400" />
+                  <span className="truncate">{r.toHospital?.name || 'Unknown'}</span>
+                </div>
+                <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500">
+                  <span>{r.suggestedQuantity ? `${r.suggestedQuantity} units` : ''}</span>
+                  <span>{timeAgo(r.createdAt)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {loading && (
         <div className="flex min-h-[240px] items-center justify-center rounded-2xl border border-slate-200 bg-white">

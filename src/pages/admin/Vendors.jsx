@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { Users, MapPin, Phone } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { Users, MapPin, Phone, Search } from 'lucide-react'
 import { apiFetch } from '../../api'
 import { DARK, LIME, LIME_TEXT } from '../../theme/adminColors'
 
@@ -13,6 +13,8 @@ export default function AdminVendors() {
   const [vendors, setVendors] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [sortBy, setSortBy] = useState('reliability') // 'reliability' | 'name'
 
   useEffect(() => {
     fetchVendors()
@@ -31,16 +33,57 @@ export default function AdminVendors() {
     }
   }
 
+  const visibleVendors = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase()
+    const filtered = term
+      ? vendors.filter(
+          (v) =>
+            v.name?.toLowerCase().includes(term) ||
+            v.location?.toLowerCase().includes(term)
+        )
+      : vendors
+
+    // Backend already returns vendors sorted by reliability desc — only
+    // re-sort client-side when the user picks the other option.
+    if (sortBy === 'name') {
+      return [...filtered].sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+    }
+    return filtered
+  }, [vendors, searchTerm, sortBy])
+
   return (
     <div>
-      <div className="mb-6">
-        <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-          Network
-        </p>
-        <h1 className="mt-1 text-2xl font-bold text-slate-900">Vendors</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          View and manage registered vendors, ranked by reliability
-        </p>
+      <div className="mb-6 flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+            Network
+          </p>
+          <h1 className="mt-1 text-2xl font-bold text-slate-900">Vendors</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            View and manage registered vendors, ranked by reliability
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-500 shadow-card sm:w-64">
+            <Search size={16} className="shrink-0 text-slate-400" />
+            <input
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search vendors..."
+              className="w-full bg-transparent outline-none placeholder:text-slate-400"
+            />
+          </div>
+
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-600 shadow-card outline-none transition-colors focus:border-brand-900"
+          >
+            <option value="reliability">Sort: Reliability</option>
+            <option value="name">Sort: Name (A–Z)</option>
+          </select>
+        </div>
       </div>
 
       {loading && (
@@ -68,16 +111,16 @@ export default function AdminVendors() {
         </div>
       )}
 
-      {!loading && !error && vendors.length === 0 && (
+      {!loading && !error && visibleVendors.length === 0 && (
         <div className="flex h-40 flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white text-sm text-slate-400">
           <Users size={28} className="mb-2 text-slate-300" />
-          No vendors found.
+          {vendors.length === 0 ? 'No vendors found.' : 'No vendors match your search.'}
         </div>
       )}
 
-      {!loading && !error && vendors.length > 0 && (
+      {!loading && !error && visibleVendors.length > 0 && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {vendors.map((v, index) => {
+          {visibleVendors.map((v, index) => {
             const colors = reliabilityColor(v.reliabilityScore ?? 0)
             return (
               <div
@@ -89,7 +132,7 @@ export default function AdminVendors() {
                     <div
                       className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold"
                       style={
-                        index === 0
+                        sortBy === 'reliability' && index === 0
                           ? { backgroundColor: LIME, color: LIME_TEXT }
                           : { backgroundColor: '#F1F5F9', color: '#475569' }
                       }

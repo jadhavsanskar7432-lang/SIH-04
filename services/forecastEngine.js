@@ -187,6 +187,7 @@ function suggestRedistribution({
   if (suggestedQuantity < 1) return null;
 
   return {
+    drug,
     fromHospital,
     toHospital,
     suggestedQuantity,

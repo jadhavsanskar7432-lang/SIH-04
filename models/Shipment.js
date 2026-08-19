@@ -2,11 +2,17 @@ const mongoose = require("mongoose");
 
 const ShipmentSchema = new mongoose.Schema(
   {
-    order: { type: mongoose.Schema.Types.ObjectId, ref: "Order", required: true },
+    // Optional: vendor→hospital shipments (created from an accepted Order)
+    // set this. Hospital→hospital redistribution transfers don't have an
+    // underlying Order, so this is left unset for those.
+    order: { type: mongoose.Schema.Types.ObjectId, ref: "Order" },
     batches: [{ type: mongoose.Schema.Types.ObjectId, ref: "Batch" }],
 
-    from: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true }, // vendor
-    to: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },   // hospital
+    // "from"/"to" are generic Users, not necessarily vendor→hospital —
+    // a redistribution transfer has a donor hospital as `from` and the
+    // receiving hospital as `to`.
+    from: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    to: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
 
     dispatchedAt: { type: Date },
     expectedDelivery: { type: Date },

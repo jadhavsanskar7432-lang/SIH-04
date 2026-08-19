@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
-import { Truck, Building2 } from 'lucide-react'
+import { Truck, Building2, MapPin } from 'lucide-react'
 import { apiFetch } from '../../api'
 import { DARK, LIME } from '../../theme/adminColors'
+import ShipmentMap from '../../components/supply/ShipmentMap'
+import { getSocket } from '../../socket'
 
 const STEPS = ['pending', 'in_transit', 'delivered']
 
-function ShipmentCard({ shipment: s }) {
+function ShipmentCard({ shipment: s, showMap, onToggleMap }) {
   let currentStep = STEPS.indexOf(s.status)
   if (currentStep === -1) currentStep = STEPS.length
 
@@ -20,7 +22,7 @@ function ShipmentCard({ shipment: s }) {
   const isLate = s.deliveryStatus === 'late'
 
   return (
-    <div className="relative rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
+    <div className="relative rounded-2xl border border-slate-200 bg-white p-5 shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-popover">
       {(isDelayedOrFailed || isLate) && (
         <span
           className={`absolute -top-2.5 right-4 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide shadow-sm ${
@@ -103,6 +105,20 @@ function ShipmentCard({ shipment: s }) {
           </span>
         )}
       </div>
+
+      <button
+        onClick={onToggleMap}
+        className="mt-3 flex items-center gap-1 text-xs font-medium hover:underline"
+        style={{ color: DARK }}
+      >
+        <MapPin size={12} />
+        {showMap ? 'Hide map' : 'Track on map'}
+      </button>
+      {showMap && (
+        <div className="mt-2">
+          <ShipmentMap shipment={s} />
+        </div>
+      )}
     </div>
   )
 }
@@ -111,6 +127,7 @@ export default function HospitalShipments() {
   const [shipments, setShipments] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [mapId, setMapId] = useState(null)
 
   async function fetchShipments() {
     setLoading(true)
@@ -127,6 +144,33 @@ export default function HospitalShipments() {
 
   useEffect(() => {
     fetchShipments()
+  }, [])
+
+  // Live updates: backend emits "shipment:update" to this hospital's room.
+  useEffect(() => {
+    const socket = getSocket()
+    const onUpdate = (updated) => {
+      setShipments((prev) => {
+        const exists = prev.some((s) => s._id === updated._id)
+        if (!exists) {
+          fetchShipments()
+          return prev
+        }
+        return prev.map((s) =>
+          s._id === updated._id
+            ? {
+                ...s,
+                status: updated.status,
+                trail: updated.trail,
+                deliveredAt: updated.deliveredAt,
+                deliveryStatus: updated.deliveryStatus,
+              }
+            : s
+        )
+      })
+    }
+    socket.on('shipment:update', onUpdate)
+    return () => socket.off('shipment:update', onUpdate)
   }, [])
 
   const activeCount = shipments.filter((s) =>
@@ -170,9 +214,14 @@ export default function HospitalShipments() {
       )}
 
       {!loading && !error && shipments.length > 0 && (
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
           {shipments.map((s) => (
-            <ShipmentCard key={s._id} shipment={s} />
+            <ShipmentCard
+              key={s._id}
+              shipment={s}
+              showMap={mapId === s._id}
+              onToggleMap={() => setMapId(mapId === s._id ? null : s._id)}
+            />
           ))}
         </div>
       )}

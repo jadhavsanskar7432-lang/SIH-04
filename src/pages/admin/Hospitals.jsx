@@ -1,21 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Search, Building2 } from 'lucide-react'
+import { Search, Building2, Mail, Phone, MapPin } from 'lucide-react'
 import { apiFetch } from '../../api'
 import { DARK, LIME, LIME_TEXT } from '../../theme/adminColors'
-
-function PageHeader() {
-  return (
-    <div className="mb-6">
-      <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-        Network
-      </p>
-      <h1 className="mt-1 text-2xl font-bold text-slate-900">Hospitals</h1>
-      <p className="mt-1 text-sm text-slate-500">
-        View and manage connected hospital accounts
-      </p>
-    </div>
-  )
-}
 
 export default function AdminHospitals() {
   const [hospitals, setHospitals] = useState([])
@@ -89,7 +75,15 @@ export default function AdminHospitals() {
 
   return (
     <div>
-      <PageHeader />
+      <div className="mb-6">
+        <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+          Network
+        </p>
+        <h1 className="mt-1 text-2xl font-bold text-slate-900">Hospitals</h1>
+        <p className="mt-1 text-sm text-slate-500">
+          View and manage connected hospital accounts
+        </p>
+      </div>
 
       {/* CONTROLS */}
       <div className="mb-6 flex flex-col items-center justify-between gap-3 sm:flex-row">
@@ -123,14 +117,10 @@ export default function AdminHospitals() {
       </div>
 
       {loading && (
-        <div className="flex min-h-[240px] items-center justify-center rounded-2xl border border-slate-200 bg-white">
-          <div className="text-center">
-            <div
-              className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-slate-200"
-              style={{ borderTopColor: DARK }}
-            />
-            <p className="mt-3 text-sm text-slate-500">Loading hospitals...</p>
-          </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="skeleton h-40 rounded-2xl" />
+          ))}
         </div>
       )}
 
@@ -157,77 +147,78 @@ export default function AdminHospitals() {
       )}
 
       {!loading && !error && filteredHospitals.length > 0 && (
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
-              <thead className="bg-slate-50">
-                <tr>
-                  <th className="px-6 py-3 font-medium text-slate-500">
-                    Name & Email
-                  </th>
-                  <th className="px-6 py-3 font-medium text-slate-500">
-                    Location
-                  </th>
-                  <th className="px-6 py-3 font-medium text-slate-500">
-                    Contact
-                  </th>
-                  <th className="px-6 py-3 font-medium text-slate-500">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-right font-medium text-slate-500">
-                    Action
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200">
-                {filteredHospitals.map((h) => (
-                  <tr key={h._id} className="transition-colors hover:bg-slate-50">
-                    <td className="px-6 py-4">
-                      <div className="font-medium text-slate-900">{h.name}</div>
-                      <div className="text-xs text-slate-500">{h.email}</div>
-                    </td>
-                    <td className="px-6 py-4 text-slate-500">{h.location}</td>
-                    <td className="px-6 py-4 text-slate-500">
-                      {h.contact || '—'}
-                    </td>
-                    <td className="px-6 py-4">
-                      {h.isActive ? (
-                        <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-600">
-                          Active
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600">
-                          Inactive
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <button
-                        onClick={() => handleToggleStatus(h)}
-                        disabled={actionLoading === h._id}
-                        className={`inline-flex items-center justify-center rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50 ${
-                          h.isActive
-                            ? 'border border-rose-200 bg-white text-rose-600 hover:bg-rose-50'
-                            : ''
-                        }`}
-                        style={
-                          !h.isActive
-                            ? { backgroundColor: LIME, color: LIME_TEXT }
-                            : undefined
-                        }
-                      >
-                        {actionLoading === h._id
-                          ? 'Updating...'
-                          : h.isActive
-                          ? 'Deactivate'
-                          : 'Activate'}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {filteredHospitals.map((h) => (
+            <div
+              key={h._id}
+              className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-popover"
+            >
+              {/* Urgency-style status accent, top edge instead of left —
+                  keeps the card shape clean while still signaling status
+                  at a glance, same visual language as the rest of the app. */}
+              <div
+                className="absolute inset-x-0 top-0 h-1"
+                style={{ backgroundColor: h.isActive ? LIME : '#CBD5E1' }}
+              />
+
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-bold text-slate-600">
+                    {h.name?.charAt(0) || '?'}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold text-slate-900">{h.name}</p>
+                    <p className="flex items-center gap-1 truncate text-xs text-slate-500">
+                      <Mail size={11} />
+                      {h.email}
+                    </p>
+                  </div>
+                </div>
+
+                {h.isActive ? (
+                  <span className="shrink-0 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-600">
+                    Active
+                  </span>
+                ) : (
+                  <span className="shrink-0 rounded-full border border-slate-200 bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600">
+                    Inactive
+                  </span>
+                )}
+              </div>
+
+              <div className="mt-4 space-y-1.5 border-t border-slate-100 pt-3">
+                <p className="flex items-center gap-1.5 text-xs text-slate-500">
+                  <MapPin size={12} />
+                  {h.location}
+                </p>
+                <p className="flex items-center gap-1.5 text-xs text-slate-500">
+                  <Phone size={12} />
+                  {h.contact || 'No contact on file'}
+                </p>
+              </div>
+
+              <button
+                onClick={() => handleToggleStatus(h)}
+                disabled={actionLoading === h._id}
+                className={`mt-4 flex w-full items-center justify-center rounded-full px-3.5 py-2 text-xs font-semibold transition-colors disabled:opacity-50 ${
+                  h.isActive
+                    ? 'border border-rose-200 bg-white text-rose-600 hover:bg-rose-50'
+                    : ''
+                }`}
+                style={
+                  !h.isActive
+                    ? { backgroundColor: LIME, color: LIME_TEXT }
+                    : undefined
+                }
+              >
+                {actionLoading === h._id
+                  ? 'Updating...'
+                  : h.isActive
+                  ? 'Deactivate'
+                  : 'Activate'}
+              </button>
+            </div>
+          ))}
         </div>
       )}
     </div>

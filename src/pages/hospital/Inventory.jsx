@@ -17,6 +17,15 @@ function daysUntil(date) {
   return Math.ceil((new Date(date) - new Date()) / (1000 * 60 * 60 * 24))
 }
 
+function urgencyAccent(batch) {
+  if (batch.status === 'expired' || batch.status === 'recalled') return '#F43F5E'
+  if (batch.status !== 'in_stock') return '#CBD5E1'
+  const d = daysUntil(batch.expiryDate)
+  if (d < 0) return '#F43F5E'
+  if (d <= 30) return '#F59E0B'
+  return '#D7FF5F'
+}
+
 export default function HospitalInventory() {
   const [batches, setBatches] = useState([])
   const [loading, setLoading] = useState(true)
@@ -77,10 +86,7 @@ export default function HospitalInventory() {
       {/* QUICK STATS */}
       {!loading && !error && batches.length > 0 && (
         <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <div
-            style={{ backgroundColor: DARK }}
-            className="rounded-2xl p-5 text-white"
-          >
+          <div style={{ backgroundColor: DARK }} className="rounded-2xl p-5 text-white">
             <p className="text-sm text-white/50">Total Units in Stock</p>
             <p className="mt-1 text-2xl font-bold">{totalUnits.toLocaleString()}</p>
             <p className="mt-1 text-xs text-white/40">
@@ -130,13 +136,12 @@ export default function HospitalInventory() {
       </div>
 
       {loading && (
-        <div className="flex min-h-[240px] items-center justify-center rounded-2xl border border-slate-200 bg-white">
-          <div className="text-center">
-            <div
-              className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-slate-200"
-              style={{ borderTopColor: DARK }}
-            />
-            <p className="mt-3 text-sm text-slate-500">Loading inventory...</p>
+        <div className="space-y-3">
+          <div className="skeleton h-24 rounded-2xl" />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="skeleton h-36 rounded-2xl" />
+            ))}
           </div>
         </div>
       )}
@@ -167,66 +172,62 @@ export default function HospitalInventory() {
             Showing {filtered.length} of {batches.length} batch{batches.length !== 1 ? 'es' : ''}
           </p>
 
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
-                <thead className="bg-slate-50">
-                  <tr>
-                    <th className="px-6 py-3 font-medium text-slate-500">Batch</th>
-                    <th className="px-6 py-3 font-medium text-slate-500">Drug</th>
-                    <th className="px-6 py-3 font-medium text-slate-500">Vendor</th>
-                    <th className="px-6 py-3 text-right font-medium text-slate-500">Quantity</th>
-                    <th className="px-6 py-3 font-medium text-slate-500">Expiry</th>
-                    <th className="px-6 py-3 font-medium text-slate-500">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200">
-                  {filtered.map((b) => {
-                    const d = daysUntil(b.expiryDate)
-                    const isUrgent = b.status === 'in_stock' && d >= 0 && d <= 30
-                    return (
-                      <tr
-                        key={b._id}
-                        className={`transition-colors hover:bg-slate-50 ${
-                          isUrgent ? 'bg-amber-50/40' : ''
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {filtered.map((b) => {
+              const d = daysUntil(b.expiryDate)
+              const isUrgent = b.status === 'in_stock' && d >= 0 && d <= 30
+              const isExpired = b.status === 'in_stock' && d < 0
+
+              return (
+                <div
+                  key={b._id}
+                  className="flex overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-popover"
+                >
+                  <div className="w-1.5 shrink-0" style={{ backgroundColor: urgencyAccent(b) }} />
+
+                  <div className="flex-1 p-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold text-slate-900">{b.drug?.name || '—'}</p>
+                        <p className="font-mono text-[11px] text-slate-400">{b.batchNumber}</p>
+                      </div>
+                      <span
+                        className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold capitalize ${
+                          STATUS_STYLES[b.status] || 'bg-slate-100 text-slate-500'
                         }`}
                       >
-                        <td className="px-6 py-4 font-mono text-xs text-slate-700">
-                          {b.batchNumber}
-                        </td>
-                        <td className="px-6 py-4 text-slate-900">
-                          {b.drug?.name || '—'}
-                          {b.drug?.unit && (
-                            <span className="ml-1 text-xs text-slate-400">({b.drug.unit})</span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 text-slate-500">{b.vendor?.name || '—'}</td>
-                        <td className="px-6 py-4 text-right font-semibold text-slate-800">
-                          {b.quantity?.toLocaleString() ?? 0}
-                        </td>
-                        <td className="px-6 py-4 text-slate-500">
-                          {b.expiryDate ? new Date(b.expiryDate).toLocaleDateString() : '—'}
-                          {isUrgent && (
-                            <span className="ml-2 text-xs font-semibold text-amber-600">
-                              {d}d left
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4">
-                          <span
-                            className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ${
-                              STATUS_STYLES[b.status] || 'bg-slate-100 text-slate-500'
-                            }`}
-                          >
-                            {b.status?.replace(/_/g, ' ')}
-                          </span>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
+                        {b.status?.replace(/_/g, ' ')}
+                      </span>
+                    </div>
+
+                    <div className="mt-3 flex items-end justify-between border-t border-slate-100 pt-3">
+                      <div>
+                        <p className="text-[11px] text-slate-400">Vendor</p>
+                        <p className="text-xs font-medium text-slate-600">{b.vendor?.name || '—'}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[11px] text-slate-400">Quantity</p>
+                        <p className="text-lg font-bold text-slate-900">{b.quantity?.toLocaleString() ?? 0}</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
+                      <span>{b.expiryDate ? new Date(b.expiryDate).toLocaleDateString() : '—'}</span>
+                      {isExpired && (
+                        <span className="rounded-full bg-danger-50 px-2 py-0.5 text-[10px] font-bold text-danger-600">
+                          EXPIRED
+                        </span>
+                      )}
+                      {isUrgent && (
+                        <span className="rounded-full bg-warning-50 px-2 py-0.5 text-[10px] font-bold text-warning-700">
+                          {d}d left
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
           </div>
         </div>
       )}

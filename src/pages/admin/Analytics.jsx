@@ -25,7 +25,7 @@ const PERIOD_LABEL = {
 function SectionCard({ title, description, action, children, className = '' }) {
   return (
     <div
-      className={`rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md ${className}`}
+      className={`rounded-2xl border border-slate-200 bg-white p-6 shadow-card transition-shadow duration-200 hover:shadow-popover ${className}`}
     >
       {(title || action) && (
         <div className="mb-5 flex items-start justify-between gap-3">
@@ -58,25 +58,35 @@ function StatCard({ label, value, caption, icon: Icon, accent = false, chip }) {
     return (
       <div
         style={{ backgroundColor: DARK }}
-        className="cursor-default rounded-2xl p-5 text-white transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-lg"
+        className="group relative cursor-default overflow-hidden rounded-2xl p-5 text-white transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-lg"
       >
+        <Icon
+          size={92}
+          strokeWidth={1}
+          className="pointer-events-none absolute -bottom-4 -right-4 text-white/[0.06] transition-transform duration-500 ease-out group-hover:scale-110 group-hover:rotate-6"
+        />
         <div
           style={{ backgroundColor: LIME, color: LIME_TEXT }}
-          className="flex h-9 w-9 items-center justify-center rounded-lg"
+          className="relative flex h-9 w-9 items-center justify-center rounded-lg"
         >
           <Icon size={18} />
         </div>
-        <p className="mt-4 text-sm text-white/50">{label}</p>
-        <p className="mt-1 text-2xl font-bold">{value}</p>
-        {caption && <p className="mt-1 text-xs text-white/40">{caption}</p>}
+        <p className="relative mt-4 text-sm text-white/50">{label}</p>
+        <p className="relative mt-1 text-2xl font-bold">{value}</p>
+        {caption && <p className="relative mt-1 text-xs text-white/40">{caption}</p>}
       </div>
     )
   }
 
   return (
-    <div className="cursor-default rounded-2xl border border-slate-200 bg-white p-5 transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-lg">
+    <div className="group relative cursor-default overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-lg">
+      <Icon
+        size={92}
+        strokeWidth={1}
+        className="pointer-events-none absolute -bottom-4 -right-4 text-slate-900/[0.04] transition-transform duration-500 ease-out group-hover:scale-110 group-hover:rotate-6"
+      />
       <div
-        className="flex h-9 w-9 items-center justify-center rounded-lg"
+        className="relative flex h-9 w-9 items-center justify-center rounded-lg"
         style={{
           backgroundColor: chip?.bg || '#F8FAFC',
           color: chip?.text || '#64748B',
@@ -84,9 +94,9 @@ function StatCard({ label, value, caption, icon: Icon, accent = false, chip }) {
       >
         <Icon size={18} />
       </div>
-      <p className="mt-4 text-sm text-slate-500">{label}</p>
-      <p className="mt-1 text-2xl font-bold text-slate-900">{value}</p>
-      {caption && <p className="mt-1 text-xs text-slate-400">{caption}</p>}
+      <p className="relative mt-4 text-sm text-slate-500">{label}</p>
+      <p className="relative mt-1 text-2xl font-bold text-slate-900">{value}</p>
+      {caption && <p className="relative mt-1 text-xs text-slate-400">{caption}</p>}
     </div>
   )
 }
@@ -526,7 +536,7 @@ export default function AdminAnalytics() {
                       )}
 
                       <div
-                        className="w-full min-w-[8px] rounded-t-md transition-all duration-700 ease-out"
+                        className="w-full min-w-[8px] rounded-full transition-all duration-700 ease-out"
                         style={{
                           height: mounted ? `${Math.max(height, 3)}%` : '0%',
                           ...(isLatest || isPinned
@@ -676,9 +686,15 @@ export default function AdminAnalytics() {
                 {inventory.byDrug?.map((drug) => (
                   <tr
                     key={drug.drugId}
-                    className="border-b border-slate-100 transition-colors hover:bg-slate-50"
+                    className={`border-b border-slate-100 border-l-2 transition-colors hover:bg-slate-50 ${
+                      drug.stockStatus === 'critical'
+                        ? 'border-l-danger-600'
+                        : drug.stockStatus === 'low'
+                        ? 'border-l-warning-600'
+                        : 'border-l-transparent'
+                    }`}
                   >
-                    <td className="py-3">
+                    <td className="py-3 pl-3">
                       <p className="font-medium text-slate-800">{drug.name}</p>
                       <p className="text-xs text-slate-400">
                         {drug.category || 'Uncategorized'}
@@ -719,33 +735,40 @@ export default function AdminAnalytics() {
               </thead>
 
               <tbody>
-                {inventory.expiringSoon.map((batch) => (
-                  <tr
-                    key={batch.batchId}
-                    className="border-b border-slate-100 transition-colors hover:bg-slate-50"
-                  >
-                    <td className="py-3 font-medium text-slate-800">
-                      {batch.batchNumber}
-                    </td>
+                {inventory.expiringSoon.map((batch) => {
+                  const daysLeft = Math.ceil(
+                    (new Date(batch.expiryDate) - new Date()) / (1000 * 60 * 60 * 24)
+                  )
+                  return (
+                    <tr
+                      key={batch.batchId}
+                      className={`border-b border-slate-100 border-l-2 transition-colors hover:bg-slate-50 ${
+                        daysLeft <= 7 ? 'border-l-danger-600' : 'border-l-warning-600'
+                      }`}
+                    >
+                      <td className="py-3 pl-3 font-medium text-slate-800">
+                        {batch.batchNumber}
+                      </td>
 
-                    <td className="py-3 text-slate-700">
-                      {batch.drug?.name || 'Unknown'}
-                    </td>
+                      <td className="py-3 text-slate-700">
+                        {batch.drug?.name || 'Unknown'}
+                      </td>
 
-                    <td className="py-3 text-slate-700">{batch.quantity}</td>
+                      <td className="py-3 text-slate-700">{batch.quantity}</td>
 
-                    <td className="py-3">
-                      <span className="inline-flex items-center gap-1 font-medium text-amber-600">
-                        <CalendarClock size={12} />
-                        {new Date(batch.expiryDate).toLocaleDateString()}
-                      </span>
-                    </td>
+                      <td className="py-3">
+                        <span className="inline-flex items-center gap-1 font-medium text-amber-600">
+                          <CalendarClock size={12} />
+                          {new Date(batch.expiryDate).toLocaleDateString()}
+                        </span>
+                      </td>
 
-                    <td className="py-3 text-slate-600">
-                      {batch.currentLocation?.name || 'In transit'}
-                    </td>
-                  </tr>
-                ))}
+                      <td className="py-3 text-slate-600">
+                        {batch.currentLocation?.name || 'In transit'}
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>

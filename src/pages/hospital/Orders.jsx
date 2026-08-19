@@ -1,17 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Plus, X, ShoppingCart, Building2 } from 'lucide-react'
+import { Plus, X, ShoppingCart, Building2, AlertCircle, Zap } from 'lucide-react'
 import { apiFetch } from '../../api'
+import { getSocket } from '../../socket'
 import { DARK, LIME, LIME_TEXT } from '../../theme/adminColors'
-
-const STATUS_COLORS = {
-  requested: 'bg-blue-50 text-blue-700',
-  approved: 'bg-emerald-50 text-emerald-700',
-  accepted: 'bg-teal-50 text-teal-700',
-  dispatched: 'bg-amber-50 text-amber-700',
-  delivered: 'bg-green-50 text-green-700',
-  rejected: 'bg-rose-50 text-rose-700',
-  cancelled: 'bg-slate-100 text-slate-500',
-}
+import OrderStepper from '../../components/ui/OrderStepper'
+import EmptyState from '../../components/ui/EmptyState'
 
 export default function HospitalOrders() {
   const [orders, setOrders] = useState([])
@@ -47,6 +40,22 @@ export default function HospitalOrders() {
 
   useEffect(() => {
     fetchData()
+  }, [])
+
+  // Live updates: backend emits "order:update" to this hospital's room
+  // whenever one of its orders changes (approved, accepted, dispatched...).
+  useEffect(() => {
+    const socket = getSocket()
+    const onUpdate = async () => {
+      try {
+        const data = await apiFetch('/orders')
+        setOrders(data)
+      } catch {
+        // ignore transient refetch errors
+      }
+    }
+    socket.on('order:update', onUpdate)
+    return () => socket.off('order:update', onUpdate)
   }, [])
 
   async function handleCreate(e) {
@@ -201,93 +210,102 @@ export default function HospitalOrders() {
       )}
 
       {loading && (
-        <div className="flex min-h-[240px] items-center justify-center rounded-2xl border border-slate-200 bg-white">
-          <div className="text-center">
-            <div
-              className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-slate-200"
-              style={{ borderTopColor: DARK }}
-            />
-            <p className="mt-3 text-sm text-slate-500">Loading orders...</p>
-          </div>
+        <div className="space-y-4">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <div key={i} className="skeleton h-32 rounded-2xl" />
+          ))}
         </div>
       )}
 
       {!loading && error && (
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-6">
-          <h2 className="font-semibold text-red-800">Could not load orders</h2>
-          <p className="mt-1 text-sm text-red-600">{error}</p>
+        <div className="flex items-start gap-3 rounded-2xl border border-danger-100 bg-danger-50 p-4">
+          <AlertCircle size={18} className="mt-0.5 shrink-0 text-danger-600" />
+          <div>
+            <p className="text-sm font-medium text-danger-700">Could not load orders</p>
+            <p className="mt-0.5 text-sm text-danger-600">{error}</p>
+          </div>
         </div>
       )}
 
       {!loading && !error && orders.length === 0 && (
-        <div className="flex h-40 flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white text-sm text-slate-400">
-          <ShoppingCart size={28} className="mb-2 text-slate-300" />
-          No orders yet. Create your first order above.
-        </div>
+        <EmptyState
+          icon={ShoppingCart}
+          title="No orders yet"
+          description="Create your first order above to get started."
+        />
       )}
 
       {!loading && !error && orders.length > 0 && (
-        <div className="space-y-3">
-          {orders.map((o) => (
-            <div
-              key={o._id}
-              className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
-            >
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs text-slate-400">
-                      #{o._id.substring(o._id.length - 6).toUpperCase()}
-                    </span>
-                    <span
-                      className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium capitalize ${
-                        STATUS_COLORS[o.status] || ''
-                      }`}
-                    >
-                      {o.status}
-                    </span>
-                    {o.urgency === 'urgent' && (
-                      <span className="inline-flex rounded-full bg-rose-50 px-2 py-0.5 text-xs font-medium text-rose-700">
-                        Urgent
-                      </span>
-                    )}
+        <div className="space-y-4">
+          {orders.map((o) => {
+            const accentColor =
+              o.status === 'rejected' || o.status === 'cancelled'
+                ? '#94A3B8'
+                : o.urgency === 'urgent'
+                ? '#F43F5E'
+                : LIME
+
+            return (
+              <div
+                key={o._id}
+                className="flex overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-card transition-shadow duration-200 hover:shadow-popover"
+              >
+                <div className="w-1.5 shrink-0" style={{ backgroundColor: accentColor }} />
+
+                <div className="flex-1 p-5">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-mono text-xs font-semibold text-slate-400">
+                          #{o._id.substring(o._id.length - 6).toUpperCase()}
+                        </span>
+                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold capitalize text-slate-500">
+                          {o.priority} priority
+                        </span>
+                        {o.urgency === 'urgent' && (
+                          <span className="flex items-center gap-1 rounded-full bg-danger-50 px-2 py-0.5 text-[10px] font-semibold text-danger-700">
+                            <Zap size={10} /> Urgent
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="mt-2.5 flex flex-wrap gap-1.5">
+                        {o.items?.map((it, i) => (
+                          <span key={i} className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
+                            {it.drug?.name ?? 'Unknown'} × {it.quantity}
+                          </span>
+                        ))}
+                      </div>
+
+                      {o.vendor?.name && (
+                        <p className="mt-2.5 flex items-center gap-1.5 text-xs text-slate-500">
+                          <Building2 size={12} />
+                          Assigned vendor: <span className="font-medium text-slate-700">{o.vendor.name}</span>
+                        </p>
+                      )}
+
+                      {o.notes && <p className="mt-1.5 text-xs italic text-slate-400">"{o.notes}"</p>}
+                    </div>
+
+                    <div className="w-full sm:w-auto sm:min-w-[260px]">
+                      <OrderStepper status={o.status} />
+                    </div>
                   </div>
 
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    {o.items?.map((it, i) => (
-                      <span
-                        key={i}
-                        className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700"
-                      >
-                        {it.drug?.name ?? 'Unknown'} × {it.quantity}
-                      </span>
-                    ))}
-                  </div>
-
-                  {o.vendor?.name && (
-                    <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-500">
-                      <Building2 size={12} />
-                      Assigned vendor: {o.vendor.name}
-                    </p>
-                  )}
-
-                  {o.notes && <p className="mt-1 text-xs text-slate-400">"{o.notes}"</p>}
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <span className="text-xs capitalize text-slate-400">{o.priority} priority</span>
                   {['requested', 'approved'].includes(o.status) && (
-                    <button
-                      onClick={() => handleCancel(o._id)}
-                      className="rounded-full border border-rose-200 bg-white px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50"
-                    >
-                      Cancel
-                    </button>
+                    <div className="mt-4 border-t border-slate-100 pt-4">
+                      <button
+                        onClick={() => handleCancel(o._id)}
+                        className="rounded-full border border-danger-100 bg-white px-3 py-1.5 text-xs font-semibold text-danger-600 transition-colors hover:bg-danger-50"
+                      >
+                        Cancel Order
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>

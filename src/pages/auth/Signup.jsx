@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate, useLocation, Navigate, Link } from 'react-router-dom'
+import { useNavigate, Navigate, Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import {
   ShieldCheck,
@@ -24,8 +24,6 @@ const roles = [
     label: 'Admin',
     description: 'Manage platform operations, users and system workflows.',
     icon: ShieldCheck,
-    demoEmail: 'admin@pss04.gov.in',
-    demoPassword: 'admin123',
     accent: '#D9FF6A',
   },
   {
@@ -33,8 +31,6 @@ const roles = [
     label: 'Hospital',
     description: 'Manage hospital operations, orders and healthcare workflows.',
     icon: Building2,
-    demoEmail: 'hospital1@pss04.gov.in',
-    demoPassword: 'hospital123',
     accent: '#5EEAD4',
   },
   {
@@ -42,8 +38,6 @@ const roles = [
     label: 'Vendor',
     description: 'Manage products, orders, inventory and shipments.',
     icon: Truck,
-    demoEmail: 'vendor1@pss04.gov.in',
-    demoPassword: 'vendor123',
     accent: '#FCD34D',
   },
 ]
@@ -139,7 +133,6 @@ function RoleCard({ role, index, onSelect }) {
       style={{ animationDelay: `${index * 70}ms` }}
       className="animate-fade-slide-up group relative flex flex-col items-start gap-4 overflow-hidden rounded-2xl border border-slate-200 bg-white p-8 text-left shadow-sm transition-all duration-300 ease-out hover:-translate-y-1.5 hover:border-brand-200 hover:shadow-xl hover:shadow-brand-900/[0.10] focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-2"
     >
-      {/* Role-accent top bar — subtle per-role identity */}
       <span
         className="absolute inset-x-0 top-0 h-1 origin-left scale-x-0 transition-transform duration-300 ease-out group-hover:scale-x-100"
         style={{ backgroundColor: role.accent }}
@@ -166,14 +159,21 @@ function RoleCard({ role, index, onSelect }) {
   )
 }
 
-export default function Login() {
-  const { user, login } = useAuth()
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+export default function Signup() {
+  const { user, register } = useAuth()
   const navigate = useNavigate()
-  const location = useLocation()
 
   const [selectedRole, setSelectedRole] = useState(null)
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const [form, setForm] = useState({
+    name: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+    location: '',
+    contact: '',
+  })
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -194,28 +194,42 @@ export default function Login() {
     setSelectedRole(null)
   }
 
+  const update = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }))
+
+  const validate = () => {
+    if (!form.name.trim()) return 'Please enter your name.'
+    if (!EMAIL_RE.test(form.email.trim())) return 'Please enter a valid email address.'
+    if (form.password.length < 6) return 'Password must be at least 6 characters.'
+    if (form.password !== form.confirmPassword) return 'Passwords do not match.'
+    if (!form.location.trim()) return 'Please enter a location.'
+    return null
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
-    if (!email.trim() || !password) {
-      setError('Please enter your email and password.')
+    const validationError = validate()
+    if (validationError) {
+      setError(validationError)
       return
     }
+
     setSubmitting(true)
-    const result = await login(email.trim(), password)
+    const result = await register({
+      name: form.name.trim(),
+      email: form.email.trim(),
+      password: form.password,
+      role: selectedRole,
+      location: form.location.trim(),
+      contact: form.contact.trim() || undefined,
+    })
     setSubmitting(false)
+
     if (!result.success) {
       setError(result.message)
       return
     }
-    const from = location.state?.from?.pathname
-    navigate(from || '/', { replace: true })
-  }
-
-  const fillDemo = () => {
-    if (!selectedRoleInfo) return
-    setEmail(selectedRoleInfo.demoEmail)
-    setPassword(selectedRoleInfo.demoPassword)
+    navigate('/', { replace: true })
   }
 
   return (
@@ -231,7 +245,7 @@ export default function Login() {
             MedSupply <span className="bg-gradient-to-r from-brand-900 to-brand-700 bg-clip-text text-transparent">Chain</span>
           </h1>
           <p className="mt-2 text-sm text-slate-500">
-            {selectedRole ? `${selectedRoleInfo?.label} Sign In` : 'Choose your role to sign in'}
+            {selectedRole ? `Create your ${selectedRoleInfo?.label} account` : 'Choose your role to sign up'}
           </p>
         </div>
 
@@ -243,9 +257,9 @@ export default function Login() {
               ))}
             </div>
             <p className="mt-8 text-center text-sm text-slate-500">
-              New here?{' '}
-              <Link to="/signup" className="font-medium text-brand-800 hover:underline">
-                Create an account
+              Already have an account?{' '}
+              <Link to="/login" className="font-medium text-brand-800 hover:underline">
+                Sign in
               </Link>
             </p>
           </>
@@ -267,41 +281,89 @@ export default function Login() {
                 </div>
                 <div>
                   <h2 className="text-base font-semibold text-slate-900">
-                    {selectedRoleInfo?.label} Sign In
+                    {selectedRoleInfo?.label} Sign Up
                   </h2>
-                  <p className="text-xs text-slate-400">Enter your credentials to continue</p>
+                  <p className="text-xs text-slate-400">Create your account to get started</p>
                 </div>
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label htmlFor="login-email" className="mb-1.5 block text-sm font-medium text-slate-700">
+                  <label htmlFor="signup-name" className="mb-1.5 block text-sm font-medium text-slate-700">
+                    Full name
+                  </label>
+                  <input
+                    id="signup-name"
+                    type="text"
+                    value={form.name}
+                    onChange={update('name')}
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none transition-all duration-200 focus:border-brand-700 focus:ring-2 focus:ring-brand-700/10"
+                    placeholder={selectedRole === 'admin' ? 'Your name' : `${selectedRoleInfo?.label} name`}
+                    autoComplete="name"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="signup-email" className="mb-1.5 block text-sm font-medium text-slate-700">
                     Email
                   </label>
                   <input
-                    id="login-email"
+                    id="signup-email"
                     type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    value={form.email}
+                    onChange={update('email')}
                     className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none transition-all duration-200 focus:border-brand-700 focus:ring-2 focus:ring-brand-700/10"
                     placeholder="Enter email"
                     autoComplete="email"
                     required
                   />
                 </div>
+
                 <div>
-                  <label htmlFor="login-password" className="mb-1.5 block text-sm font-medium text-slate-700">
+                  <label htmlFor="signup-location" className="mb-1.5 block text-sm font-medium text-slate-700">
+                    Location
+                  </label>
+                  <input
+                    id="signup-location"
+                    type="text"
+                    value={form.location}
+                    onChange={update('location')}
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none transition-all duration-200 focus:border-brand-700 focus:ring-2 focus:ring-brand-700/10"
+                    placeholder="City / area"
+                    autoComplete="address-level2"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="signup-contact" className="mb-1.5 block text-sm font-medium text-slate-700">
+                    Contact number <span className="font-normal text-slate-400">(optional)</span>
+                  </label>
+                  <input
+                    id="signup-contact"
+                    type="tel"
+                    value={form.contact}
+                    onChange={update('contact')}
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none transition-all duration-200 focus:border-brand-700 focus:ring-2 focus:ring-brand-700/10"
+                    placeholder="Phone number"
+                    autoComplete="tel"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="signup-password" className="mb-1.5 block text-sm font-medium text-slate-700">
                     Password
                   </label>
                   <div className="relative">
                     <input
-                      id="login-password"
+                      id="signup-password"
                       type={showPassword ? 'text' : 'password'}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
+                      value={form.password}
+                      onChange={update('password')}
                       className="w-full rounded-lg border border-slate-300 px-3 py-2 pr-10 text-sm text-slate-800 outline-none transition-all duration-200 focus:border-brand-700 focus:ring-2 focus:ring-brand-700/10"
-                      placeholder="Enter password"
-                      autoComplete="current-password"
+                      placeholder="At least 6 characters"
+                      autoComplete="new-password"
                       required
                     />
                     <button
@@ -313,6 +375,22 @@ export default function Login() {
                       {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
                   </div>
+                </div>
+
+                <div>
+                  <label htmlFor="signup-confirm" className="mb-1.5 block text-sm font-medium text-slate-700">
+                    Confirm password
+                  </label>
+                  <input
+                    id="signup-confirm"
+                    type={showPassword ? 'text' : 'password'}
+                    value={form.confirmPassword}
+                    onChange={update('confirmPassword')}
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none transition-all duration-200 focus:border-brand-700 focus:ring-2 focus:ring-brand-700/10"
+                    placeholder="Re-enter password"
+                    autoComplete="new-password"
+                    required
+                  />
                 </div>
 
                 {error && (
@@ -327,27 +405,14 @@ export default function Login() {
                   className="flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-brand-900 to-brand-700 py-2.5 text-sm font-semibold text-white shadow-md shadow-brand-900/20 transition-all duration-200 hover:shadow-lg hover:shadow-brand-900/25 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {submitting && <Loader2 size={16} className="animate-spin" />}
-                  {submitting ? 'Signing in...' : 'Sign in'}
+                  {submitting ? 'Creating account...' : 'Create account'}
                 </button>
               </form>
 
-              {selectedRoleInfo && (
-                <button
-                  type="button"
-                  onClick={fillDemo}
-                  className="mt-4 flex w-full items-center justify-between rounded-lg border border-accent-200 bg-accent-50/60 px-3 py-2 text-left text-xs transition-colors hover:bg-accent-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-700"
-                >
-                  <span className="text-slate-500">
-                    Demo account: <span className="font-medium text-brand-800">{selectedRoleInfo.demoEmail}</span>
-                  </span>
-                  <span className="font-medium text-brand-800">Use</span>
-                </button>
-              )}
-
               <p className="mt-5 text-center text-sm text-slate-500">
-                New here?{' '}
-                <Link to="/signup" className="font-medium text-brand-800 hover:underline">
-                  Create an account
+                Already have an account?{' '}
+                <Link to="/login" className="font-medium text-brand-800 hover:underline">
+                  Sign in
                 </Link>
               </p>
             </div>

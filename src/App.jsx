@@ -5,6 +5,7 @@ import RoleRoute from './routes/RoleRoute'
 import RootRedirect from './routes/RootRedirect'
 
 import Login from './pages/auth/Login'
+import Signup from './pages/auth/Signup'
 import Unauthorized from './pages/Unauthorized'
 import NotFound from './pages/NotFound'
 
@@ -41,8 +42,10 @@ import VendorPerformance from './pages/vendor/Performance'
 
 export default function App() {
   return (
-    <Routes>
+    <>
+      <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/signup" element={<Signup />} />
       <Route path="/unauthorized" element={<Unauthorized />} />
 
       <Route element={<ProtectedRoute />}>
@@ -86,6 +89,7 @@ export default function App() {
       </Route>
 
       <Route path="*" element={<NotFound />} />
-    </Routes>
+      </Routes>
+    </>
   )
 }

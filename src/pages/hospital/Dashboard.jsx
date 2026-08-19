@@ -60,32 +60,42 @@ function StatCard({ label, value, caption, icon: Icon, accent = false, chip }) {
     return (
       <div
         style={{ backgroundColor: DARK }}
-        className="cursor-default rounded-2xl p-5 text-white transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-lg"
+        className="group relative cursor-default overflow-hidden rounded-2xl p-5 text-white transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-lg"
       >
+        <Icon
+          size={92}
+          strokeWidth={1}
+          className="pointer-events-none absolute -bottom-4 -right-4 text-white/[0.06] transition-transform duration-500 ease-out group-hover:scale-110 group-hover:rotate-6"
+        />
         <div
           style={{ backgroundColor: LIME, color: LIME_TEXT }}
-          className="flex h-9 w-9 items-center justify-center rounded-lg"
+          className="relative flex h-9 w-9 items-center justify-center rounded-lg"
         >
           <Icon size={18} />
         </div>
-        <p className="mt-4 text-sm text-white/50">{label}</p>
-        <p className="mt-1 text-2xl font-bold">{value}</p>
-        {caption && <p className="mt-1 text-xs text-white/40">{caption}</p>}
+        <p className="relative mt-4 text-sm text-white/50">{label}</p>
+        <p className="relative mt-1 text-2xl font-bold">{value}</p>
+        {caption && <p className="relative mt-1 text-xs text-white/40">{caption}</p>}
       </div>
     )
   }
 
   return (
-    <div className="cursor-default rounded-2xl border border-slate-200 bg-white p-5 transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-lg">
+    <div className="group relative cursor-default overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-lg">
+      <Icon
+        size={92}
+        strokeWidth={1}
+        className="pointer-events-none absolute -bottom-4 -right-4 text-slate-900/[0.04] transition-transform duration-500 ease-out group-hover:scale-110 group-hover:rotate-6"
+      />
       <div
-        className="flex h-9 w-9 items-center justify-center rounded-lg"
+        className="relative flex h-9 w-9 items-center justify-center rounded-lg"
         style={{ backgroundColor: chip?.bg || '#F8FAFC', color: chip?.text || '#64748B' }}
       >
         <Icon size={18} />
       </div>
-      <p className="mt-4 text-sm text-slate-500">{label}</p>
-      <p className="mt-1 text-2xl font-bold text-slate-900">{value}</p>
-      {caption && <p className="mt-1 text-xs text-slate-400">{caption}</p>}
+      <p className="relative mt-4 text-sm text-slate-500">{label}</p>
+      <p className="relative mt-1 text-2xl font-bold text-slate-900">{value}</p>
+      {caption && <p className="relative mt-1 text-xs text-slate-400">{caption}</p>}
     </div>
   )
 }
@@ -307,7 +317,7 @@ export default function HospitalDashboard() {
                             {item.quantityConsumed} units
                           </div>
                           <div
-                            className="w-full min-w-[10px] rounded-t-md transition-all duration-700 ease-out"
+                            className="w-full min-w-[10px] rounded-full transition-all duration-700 ease-out"
                             style={{
                               height: mounted ? `${Math.max(height, 3)}%` : '0%',
                               ...(isLatest || isPinned

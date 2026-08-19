@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { apiFetch } from '../api'
+import { connectSocket, getSocket } from '../socket'
 
 const AuthContext = createContext(null)
 const STORAGE_KEY = 'sih_auth_user'
@@ -21,6 +22,13 @@ export function AuthProvider({ children }) {
     setLoading(false)
   }, [])
 
+  // Join the socket.io room for this user (role/user-scoped live updates)
+  // whenever we have a logged-in user — covers both fresh logins and
+  // page reloads that restore the session from localStorage.
+  useEffect(() => {
+    if (user) connectSocket(user)
+  }, [user])
+
   const login = async (email, password) => {
     try {
       const data = await apiFetch('/auth/login', {
@@ -36,14 +44,30 @@ export function AuthProvider({ children }) {
     }
   }
 
+  const register = async (payload) => {
+    try {
+      const data = await apiFetch('/auth/register', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      })
+      setUser(data.user)
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data.user))
+      localStorage.setItem(TOKEN_KEY, data.token)
+      return { success: true, user: data.user }
+    } catch (error) {
+      return { success: false, message: error.message || 'Registration failed' }
+    }
+  }
+
   const logout = () => {
     setUser(null)
     localStorage.removeItem(STORAGE_KEY)
     localStorage.removeItem(TOKEN_KEY)
+    getSocket().disconnect()
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, register, logout, loading }}>
       {children}
     </AuthContext.Provider>
   )

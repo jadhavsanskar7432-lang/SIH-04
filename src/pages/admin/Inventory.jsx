@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Search, Package } from 'lucide-react'
+import { Search, Package, AlertTriangle } from 'lucide-react'
 import { apiFetch } from '../../api'
 import { DARK } from '../../theme/adminColors'
 
@@ -11,14 +11,20 @@ const STATUS_STYLES = {
   recalled: 'bg-rose-50 text-rose-700',
 }
 
-const STATUS_OPTIONS = [
-  'all',
-  'in_stock',
-  'in_transit',
-  'consumed',
-  'expired',
-  'recalled',
-]
+const STATUS_OPTIONS = ['all', 'in_stock', 'in_transit', 'consumed', 'expired', 'recalled']
+
+function daysUntil(date) {
+  return Math.ceil((new Date(date) - new Date()) / (1000 * 60 * 60 * 24))
+}
+
+function urgencyAccent(batch) {
+  if (batch.status === 'expired' || batch.status === 'recalled') return '#F43F5E'
+  if (batch.status !== 'in_stock') return '#CBD5E1'
+  const d = daysUntil(batch.expiryDate)
+  if (d < 0) return '#F43F5E'
+  if (d <= 30) return '#F59E0B'
+  return '#D7FF5F'
+}
 
 export default function AdminInventory() {
   const [batches, setBatches] = useState([])
@@ -44,10 +50,17 @@ export default function AdminInventory() {
     }
   }
 
+  const inStock = batches.filter((b) => b.status === 'in_stock' && b.quantity > 0)
+  const totalUnits = inStock.reduce((sum, b) => sum + b.quantity, 0)
+  const distinctDrugs = new Set(inStock.map((b) => b.drug?._id)).size
+  const expiringSoon = inStock.filter((b) => {
+    const d = daysUntil(b.expiryDate)
+    return d >= 0 && d <= 30
+  }).length
+
   const filtered = useMemo(() => {
     return batches.filter((b) => {
       if (statusFilter !== 'all' && b.status !== statusFilter) return false
-
       if (searchTerm) {
         const term = searchTerm.toLowerCase()
         const matchesBatch = b.batchNumber?.toLowerCase().includes(term)
@@ -55,7 +68,6 @@ export default function AdminInventory() {
         const matchesVendor = b.vendor?.name?.toLowerCase().includes(term)
         if (!matchesBatch && !matchesDrug && !matchesVendor) return false
       }
-
       return true
     })
   }, [batches, searchTerm, statusFilter])
@@ -63,14 +75,38 @@ export default function AdminInventory() {
   return (
     <div>
       <div className="mb-6">
-        <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-          Stock
-        </p>
+        <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Stock</p>
         <h1 className="mt-1 text-2xl font-bold text-slate-900">Inventory</h1>
         <p className="mt-1 text-sm text-slate-500">
           All batches across the network, sorted by expiry (FEFO)
         </p>
       </div>
+
+      {/* QUICK STATS */}
+      {!loading && !error && batches.length > 0 && (
+        <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div style={{ backgroundColor: DARK }} className="rounded-2xl p-5 text-white">
+            <p className="text-sm text-white/50">Total Units in Stock</p>
+            <p className="mt-1 text-2xl font-bold">{totalUnits.toLocaleString()}</p>
+            <p className="mt-1 text-xs text-white/40">
+              {distinctDrugs} drug{distinctDrugs !== 1 ? 's' : ''} · network-wide
+            </p>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-white p-5">
+            <p className="text-sm text-slate-500">Total Batches</p>
+            <p className="mt-1 text-2xl font-bold text-slate-900">{batches.length}</p>
+            <p className="mt-1 text-xs text-slate-400">All statuses</p>
+          </div>
+          <div className="rounded-2xl border border-amber-200 bg-white p-5">
+            <p className="flex items-center gap-1.5 text-sm text-amber-600">
+              <AlertTriangle size={14} />
+              Expiring Soon
+            </p>
+            <p className="mt-1 text-2xl font-bold text-slate-900">{expiringSoon}</p>
+            <p className="mt-1 text-xs text-slate-400">Within 30 days</p>
+          </div>
+        </div>
+      )}
 
       {/* CONTROLS */}
       <div className="mb-6 flex flex-col items-center justify-between gap-3 sm:flex-row">
@@ -99,22 +135,19 @@ export default function AdminInventory() {
       </div>
 
       {loading && (
-        <div className="flex min-h-[240px] items-center justify-center rounded-2xl border border-slate-200 bg-white">
-          <div className="text-center">
-            <div
-              className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-slate-200"
-              style={{ borderTopColor: DARK }}
-            />
-            <p className="mt-3 text-sm text-slate-500">Loading batches...</p>
+        <div className="space-y-3">
+          <div className="skeleton h-24 rounded-2xl" />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="skeleton h-36 rounded-2xl" />
+            ))}
           </div>
         </div>
       )}
 
       {!loading && error && (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-6">
-          <h2 className="font-semibold text-red-800">
-            Could not load inventory
-          </h2>
+          <h2 className="font-semibold text-red-800">Could not load inventory</h2>
           <p className="mt-1 text-sm text-red-600">{error}</p>
           <button
             onClick={fetchBatches}
@@ -128,73 +161,72 @@ export default function AdminInventory() {
       {!loading && !error && filtered.length === 0 && (
         <div className="flex h-40 flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white text-sm text-slate-400">
           <Package size={28} className="mb-2 text-slate-300" />
-          {batches.length === 0
-            ? 'No batches found.'
-            : 'No batches match your filters.'}
+          {batches.length === 0 ? 'No batches found.' : 'No batches match your filters.'}
         </div>
       )}
 
       {!loading && !error && filtered.length > 0 && (
         <div className="space-y-3">
           <p className="text-sm text-slate-500">
-            Showing {filtered.length} of {batches.length} batch
-            {batches.length !== 1 ? 'es' : ''}
+            Showing {filtered.length} of {batches.length} batch{batches.length !== 1 ? 'es' : ''}
           </p>
 
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
-                <thead className="bg-slate-50">
-                  <tr>
-                    <th className="px-6 py-3 font-medium text-slate-500">Batch</th>
-                    <th className="px-6 py-3 font-medium text-slate-500">Drug</th>
-                    <th className="px-6 py-3 font-medium text-slate-500">Vendor</th>
-                    <th className="px-6 py-3 text-right font-medium text-slate-500">
-                      Quantity
-                    </th>
-                    <th className="px-6 py-3 font-medium text-slate-500">Expiry</th>
-                    <th className="px-6 py-3 font-medium text-slate-500">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200">
-                  {filtered.map((b) => (
-                    <tr key={b._id} className="transition-colors hover:bg-slate-50">
-                      <td className="px-6 py-4 font-mono text-xs text-slate-700">
-                        {b.batchNumber}
-                      </td>
-                      <td className="px-6 py-4 text-slate-900">
-                        {b.drug?.name || '—'}
-                        {b.drug?.unit && (
-                          <span className="ml-1 text-xs text-slate-400">
-                            ({b.drug.unit})
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 text-slate-500">
-                        {b.vendor?.name || '—'}
-                      </td>
-                      <td className="px-6 py-4 text-right font-semibold text-slate-800">
-                        {b.quantity?.toLocaleString() ?? 0}
-                      </td>
-                      <td className="px-6 py-4 text-slate-500">
-                        {b.expiryDate
-                          ? new Date(b.expiryDate).toLocaleDateString()
-                          : '—'}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span
-                          className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ${
-                            STATUS_STYLES[b.status] || 'bg-slate-100 text-slate-500'
-                          }`}
-                        >
-                          {b.status?.replace(/_/g, ' ')}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {filtered.map((b) => {
+              const d = daysUntil(b.expiryDate)
+              const isUrgent = b.status === 'in_stock' && d >= 0 && d <= 30
+              const isExpired = b.status === 'in_stock' && d < 0
+
+              return (
+                <div
+                  key={b._id}
+                  className="flex overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-popover"
+                >
+                  <div className="w-1.5 shrink-0" style={{ backgroundColor: urgencyAccent(b) }} />
+
+                  <div className="flex-1 p-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold text-slate-900">{b.drug?.name || '—'}</p>
+                        <p className="font-mono text-[11px] text-slate-400">{b.batchNumber}</p>
+                      </div>
+                      <span
+                        className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold capitalize ${
+                          STATUS_STYLES[b.status] || 'bg-slate-100 text-slate-500'
+                        }`}
+                      >
+                        {b.status?.replace(/_/g, ' ')}
+                      </span>
+                    </div>
+
+                    <div className="mt-3 flex items-end justify-between border-t border-slate-100 pt-3">
+                      <div>
+                        <p className="text-[11px] text-slate-400">Vendor</p>
+                        <p className="text-xs font-medium text-slate-600">{b.vendor?.name || '—'}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[11px] text-slate-400">Quantity</p>
+                        <p className="text-lg font-bold text-slate-900">{b.quantity?.toLocaleString() ?? 0}</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
+                      <span>{b.expiryDate ? new Date(b.expiryDate).toLocaleDateString() : '—'}</span>
+                      {isExpired && (
+                        <span className="rounded-full bg-danger-50 px-2 py-0.5 text-[10px] font-bold text-danger-600">
+                          EXPIRED
                         </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                      )}
+                      {isUrgent && (
+                        <span className="rounded-full bg-warning-50 px-2 py-0.5 text-[10px] font-bold text-warning-700">
+                          {d}d left
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
           </div>
         </div>
       )}

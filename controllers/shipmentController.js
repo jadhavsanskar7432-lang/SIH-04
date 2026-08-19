@@ -1,6 +1,7 @@
 const Shipment = require("../models/Shipment");
 const Order = require("../models/Order");
 const Batch = require("../models/Batch");
+const User = require("../models/User");
 const { adjustReliability } = require("../services/vendorReliability");
 
 // Valid status transitions for a shipment
@@ -21,6 +22,9 @@ const emitShipmentUpdate = (io, shipment) => {
   try {
     io.to(`user:${shipment.from}`).emit("shipment:update", shipment);
     io.to(`user:${shipment.to}`).emit("shipment:update", shipment);
+    // Admin dashboards aren't scoped to a single vendor/hospital, so also
+    // fan out to the shared admin room (joined via the "join" handler below).
+    io.to("role:admin").emit("shipment:update", shipment);
   } catch (_) {
     // socket failure is non-fatal
   }
@@ -84,15 +88,17 @@ const getShipments = async (req, res) => {
     if (req.user.role === "vendor") {
       filter.from = req.user._id;
     } else if (req.user.role === "hospital") {
-      filter.to = req.user._id;
+      // Hospitals can be the recipient of a vendor delivery (to) OR the
+      // donor in a redistribution transfer (from) — show both directions.
+      filter.$or = [{ to: req.user._id }, { from: req.user._id }];
     }
     // admin: no filter → sees all
 
     const shipments = await Shipment.find(filter)
       .populate("order")
-      .populate("batches")
-      .populate("from", "name email location")
-      .populate("to", "name email location")
+      .populate({ path: "batches", populate: { path: "drug" } })
+      .populate("from", "name email location latitude longitude role")
+      .populate("to", "name email location latitude longitude")
       .sort({ createdAt: -1 });
 
     res.json(shipments);
@@ -106,16 +112,20 @@ const getShipmentById = async (req, res) => {
   try {
     const shipment = await Shipment.findById(req.params.id)
       .populate("order")
-      .populate("batches")
-      .populate("from", "name email location")
-      .populate("to", "name email location");
+      .populate({ path: "batches", populate: { path: "drug" } })
+      .populate("from", "name email location latitude longitude role")
+      .populate("to", "name email location latitude longitude");
 
     if (!shipment) return res.status(404).json({ message: "Shipment not found" });
 
     if (req.user.role === "vendor" && String(shipment.from._id) !== String(req.user._id)) {
       return res.status(403).json({ message: "Access denied: not your shipment" });
     }
-    if (req.user.role === "hospital" && String(shipment.to._id) !== String(req.user._id)) {
+    if (
+      req.user.role === "hospital" &&
+      String(shipment.to._id) !== String(req.user._id) &&
+      String(shipment.from._id) !== String(req.user._id)
+    ) {
       return res.status(403).json({ message: "Access denied: not your shipment" });
     }
 
@@ -161,8 +171,11 @@ const updateShipmentStatus = async (req, res) => {
           shipment.deliveredAt <= shipment.expectedDelivery ? "on_time" : "late";
       }
 
-      // Flip the linked order to delivered
-      await Order.findByIdAndUpdate(shipment.order, { status: "delivered" });
+      // Flip the linked order to delivered — only vendor→hospital shipments
+      // have one; redistribution transfers don't, so skip if unset.
+      if (shipment.order) {
+        await Order.findByIdAndUpdate(shipment.order, { status: "delivered" });
+      }
 
       // Flip every batch: back in stock at the hospital (to)
       await Batch.updateMany(
@@ -179,8 +192,10 @@ const updateShipmentStatus = async (req, res) => {
 
     // Adjust vendor reliability based on shipment outcome. Wrapped so a
     // reliability-update failure never blocks the shipment status response
-    // (per BACKEND_TASKS.md Lane B requirements).
-    if (["delivered", "delayed", "failed"].includes(status)) {
+    // (per BACKEND_TASKS.md Lane B requirements). Skipped for redistribution
+    // transfers, where `from` is a donor hospital, not a vendor.
+    const fromUser = await User.findById(shipment.from).select("role");
+    if (fromUser?.role === "vendor" && ["delivered", "delayed", "failed"].includes(status)) {
       try {
         await adjustReliability(shipment.from, status);
       } catch (reliabilityErr) {
